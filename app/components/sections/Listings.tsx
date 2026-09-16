@@ -2,22 +2,56 @@
 
 import { properties } from "@/public/assets/properties";
 import { MapPin } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import PropertyCard from "../ui/PopertyCard";
 
+const propertiesPerPage = 8;
+
 function Listings() {
+  const [location, setLocation] = useState("");
+  const [transaction, setTransaction] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [sortPrice, setSortPrice] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const propertiesPerPage = 8;
-  const indexOfFirst = (currentPage - 1) * propertiesPerPage;
-  const indexOfLast = indexOfFirst + propertiesPerPage;
-  const currentProperties = properties.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(properties.length / propertiesPerPage);
+  // NOTE: category holds "For Sale" / "For Rent" / "For Lease", so we match
+  // with `.includes()` rather than exact equality against "sale"/"rent"/"lease".
+  const filteredProperties = useMemo(() => {
+    let result = [...properties];
+
+    if (location.trim()) {
+      const query = location.trim().toLowerCase();
+      result = result.filter((p) => p.location?.toLowerCase().includes(query));
+    }
+    if (transaction) {
+      result = result.filter((p) => p.category?.toLowerCase().includes(transaction));
+    }
+    if (propertyType) {
+      result = result.filter((p) => p.type?.toLowerCase() === propertyType);
+    }
+    if (sortPrice === "low") {
+      result.sort((a, b) => a.price - b.price);
+    } else if (sortPrice === "high") {
+      result.sort((a, b) => b.price - a.price);
+    }
+
+    return result;
+  }, [location, transaction, propertyType, sortPrice]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProperties.length / propertiesPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const indexOfFirst = (safePage - 1) * propertiesPerPage;
+  const currentProperties = filteredProperties.slice(indexOfFirst, indexOfFirst + propertiesPerPage);
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center">
+    <div id="listings" className="flex flex-col items-center justify-center scroll-mt-4">
       <div className="w-full text-center flex flex-col gap-6 bg-[#C9A646] py-12 px-4">
         <h1 className="text-4xl md:text-5xl font-bold text-white">
-          Find Your Dream Home
+          Browse Our Listings
         </h1>
 
         <p className="max-w-2xl mx-auto text-white/90">
@@ -25,117 +59,135 @@ function Listings() {
           — your next home is waiting.
         </p>
 
-        {/* 🔥 Search Bar */}
+        {/* Search bar */}
         <div
           className="w-full max-w-4xl mx-auto bg-white rounded-2xl p-4 shadow-lg
         flex flex-col md:flex-row gap-4 items-center"
         >
           {/* Location */}
           <div className="relative w-full md:w-1/3">
-            {/* Icon */}
             <MapPin
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              aria-hidden="true"
             />
-
-            {/* Input */}
             <input
               type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder="Location (e.g. Nairobi, Westlands)"
-              className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-100 
+              aria-label="Location"
+              className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-100
               outline-none focus:ring-2 focus:ring-[#C9A646] transition placeholder:text-gray-500 text-gray-900"
             />
           </div>
 
           {/* Transaction */}
-          <select className="w-full md:w-1/4 px-4 py-3 rounded-lg bg-gray-100 outline-none text-gray-900">
-            <option value="" className="text-gray-500">
-              Transaction
-            </option>
-            <option value="sale" className="text-gray-700">
-              Sale
-            </option>
-            <option value="rent" className="text-gray-700">
-              Rent
-            </option>
-            <option value="lease" className="text-gray-700">
-              Lease
-            </option>
+          <select
+            value={transaction}
+            onChange={(e) => setTransaction(e.target.value)}
+            aria-label="Transaction type"
+            className="w-full md:w-1/4 px-4 py-3 rounded-lg bg-gray-100 outline-none text-gray-900"
+          >
+            <option value="">All Transactions</option>
+            <option value="sale">Sale</option>
+            <option value="rent">Rent</option>
+            <option value="lease">Lease</option>
           </select>
 
           {/* Property Type */}
-          <select className="w-full md:w-1/4 px-4 py-3 rounded-lg bg-gray-100 outline-none text-gray-900">
-            <option value="" className="text-gray-500">
-              Property Type
-            </option>
-            <option value="apartment" className="text-gray-700">
-              Apartment
-            </option>
-            <option value="mansion" className="text-gray-700">
-              Mansion
-            </option>
-            <option value="villa" className="text-gray-700">
-              Villa
-            </option>
-            <option value="studio" className="text-gray-700">
-              Studio
-            </option>
-            <option value="land" className="text-gray-700">
-              Land
-            </option>
+          <select
+            value={propertyType}
+            onChange={(e) => setPropertyType(e.target.value)}
+            aria-label="Property type"
+            className="w-full md:w-1/4 px-4 py-3 rounded-lg bg-gray-100 outline-none text-gray-900"
+          >
+            <option value="">All Property Types</option>
+            <option value="apartment">Apartment</option>
+            <option value="mansion">Mansion</option>
+            <option value="villa">Villa</option>
+            <option value="studio">Studio</option>
+            <option value="land">Land</option>
           </select>
 
           {/* Price Sort */}
-          <select className="w-full md:w-1/4 px-4 py-3 rounded-lg bg-gray-100 outline-none text-gray-900">
-            <option value="" className="text-gray-500">
-              Sort by Price
-            </option>
-            <option value="low" className="text-gray-700">
-              Low → High
-            </option>
-            <option value="high" className="text-gray-700">
-              High → Low
-            </option>
+          <select
+            value={sortPrice}
+            onChange={(e) => setSortPrice(e.target.value)}
+            aria-label="Sort by price"
+            className="w-full md:w-1/4 px-4 py-3 rounded-lg bg-gray-100 outline-none text-gray-900"
+          >
+            <option value="">No Sorting</option>
+            <option value="low">Price: Low → High</option>
+            <option value="high">Price: High → Low</option>
           </select>
 
-          {/* 🔥 Search Button */}
-          <button className="w-full md:w-auto bg-[#C9A646] text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition cursor-pointer">
+          {/* Search Button */}
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="w-full md:w-auto bg-[#C9A646] text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition cursor-pointer"
+          >
             Search
           </button>
         </div>
       </div>
-      {/* Property Listings CARDS */}
-      <div className="w-full max-w-7xl mx-auto py-12 px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-        {/* 🔥 Map through properties and render PropertyCard */}
-        {currentProperties.map((property) => (
-          <PropertyCard key={property.id} property={{ ...property, images: property.images.filter((img) => img !== undefined) }} />
-        ))}
-      </div>
-      <hr className="border-gray-300" />
-      <div className="flex gap-5 mt-6 p-4 bg-gray-100 rounded-lg text-gray-700 mb-2">
-        <button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} className="cursor-pointer">
-          Prev
-        </button>
 
-        {[...Array(totalPages)].map((_, i) => (
+      {/* Property Listings */}
+      {currentProperties.length > 0 ? (
+        <div className="w-full max-w-7xl mx-auto py-12 px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {currentProperties.map((property) => (
+            <PropertyCard
+              key={property.id}
+              property={{
+                ...property,
+                images: property.images.filter((img) => img !== undefined),
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="py-16 px-4 text-center text-gray-500">
+          <p className="text-lg font-medium">No properties match your search.</p>
+          <p className="mt-1 text-sm">Try a different location or clear a filter.</p>
+        </div>
+      )}
+
+      <hr className="border-gray-300 w-full" />
+
+      {totalPages > 1 && (
+        <div className="flex gap-5 mt-6 p-4 bg-gray-100 rounded-lg text-gray-700 mb-2">
           <button
-            key={i}
-            onClick={() => setCurrentPage(i + 1)}
-            className={` ${currentPage === i + 1 ? "bg-[#C9A646] text-white" : "bg-white"} px-3 py-1 rounded cursor-pointer`}
+            type="button"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={safePage === 1}
+            className="disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
-            {i + 1}
+            Prev
           </button>
-        ))}
 
-        <button
-          onClick={() =>
-            setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-          }
-          className="cursor-pointer"
-        >
-          Next
-        </button>
-      </div>
+          {[...Array(totalPages)].map((_, i) => (
+            <button
+              type="button"
+              key={i}
+              onClick={() => setCurrentPage(i + 1)}
+              className={`${safePage === i + 1 ? "bg-[#C9A646] text-white" : "bg-white"} px-3 py-1 rounded cursor-pointer`}
+            >
+              {i + 1}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={safePage === totalPages}
+            className="disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
